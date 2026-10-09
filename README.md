@@ -101,9 +101,9 @@ explanations for each R file, and a dataset/database design document.
 ## Roadmap
 
 - [x] Stage 1 - Project setup and scaffolding
-- [ ] Stage 2 - Data layer (worldfootballR pipeline and sample-data generator)
-- [ ] Stage 3 - SQLite database creation (tables, view, index)
-- [ ] Stage 4 - Shiny app skeleton (UI layout, DB connection, tabs)
+- [x] Stage 2 - Data layer (worldfootballR pipeline and sample-data generator)
+- [x] Stage 3 - SQLite database creation (tables, view, index)
+- [x] Stage 4 - Shiny app skeleton (UI layout, DB connection, tabs)
 - [ ] Stage 5 - SQL queries and all six visualizations
 - [ ] Stage 6 - Styling, polish, and documentation
 
