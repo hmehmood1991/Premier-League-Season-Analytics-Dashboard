@@ -32,6 +32,17 @@ range slider, and a label toggle:
 A row of value boxes shows live headline stats (position, points, goals,
 goals - xG) for the selected team.
 
+## SQL-driven analysis
+
+Every figure is produced by a SQL query against the database rather than
+computed in memory, including two window functions:
+
+- **Cumulative points** use `SUM(points) OVER (PARTITION BY team ORDER BY matchweek)`.
+- **Rolling form** uses `AVG(points) OVER (ORDER BY matchweek ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)`.
+
+The league table and home/away splits use `GROUP BY` aggregates, and all
+per-team figures use parameterized queries (`WHERE team = ?`).
+
 ## Tech stack
 
 - **R** with **Shiny** (web interface) and **bslib** (Bootstrap 5 theming)
@@ -104,7 +115,7 @@ explanations for each R file, and a dataset/database design document.
 - [x] Stage 2 - Data layer (worldfootballR pipeline and sample-data generator)
 - [x] Stage 3 - SQLite database creation (tables, view, index)
 - [x] Stage 4 - Shiny app skeleton (UI layout, DB connection, tabs)
-- [ ] Stage 5 - SQL queries and all six visualizations
+- [x] Stage 5 - SQL queries and all six visualizations
 - [ ] Stage 6 - Styling, polish, and documentation
 
 ## License
