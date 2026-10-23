@@ -109,4 +109,4 @@ Released under the MIT License. See `LICENSE` for details.
 
 ## Author
 
-Your Name - [your GitHub profile](https://github.com/your-username)
+Hamid Mehmood - (https://github.com/hmehmood1991)
