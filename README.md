@@ -5,7 +5,7 @@ League data (2024/25). The data is stored in an SQLite database, and every
 visualization pulls its data through SQL queries, including window functions for
 the cumulative-points and rolling-form calculations.
 
-> Status: in development. See the [Roadmap](#roadmap) below.
+![Dashboard screenshot](docs/screenshot.png)
 
 ## Overview
 
@@ -60,7 +60,14 @@ per-team figures use parameterized queries (`WHERE team = ?`).
 ├── epl.sqlite            # SQLite database (generated; see Data below)
 ├── README.md
 ├── .gitignore
-└── docs/                 # written deliverables (proposal, code docs, data docs)
+├── LICENSE
+└── docs/                 # written deliverables and screenshot
+    ├── 01_project_proposal.docx
+    ├── 02_code_explanation_build_db.docx
+    ├── 03_code_explanation_app.docx
+    ├── 04_dataset_and_database.docx
+    ├── 05_wireframe_sketch.png
+    └── screenshot.png
 ```
 
 ## Getting started
@@ -102,12 +109,16 @@ The app uses two datasets: match results and shot-level data.
   Understat.
 
 The database contains two tables (`matches`, `shots`) and one view
-(`team_match`). See `docs/` for a full data dictionary.
+(`team_match`). See `docs/04_dataset_and_database.docx` for a full data dictionary.
 
 ## Documentation
 
-The `docs/` folder contains the project write-ups: the proposal, code
-explanations for each R file, and a dataset/database design document.
+The `docs/` folder contains the project write-ups:
+
+- **Project proposal** - the one-page proposal.
+- **Code explanations** - section-by-section walkthroughs of `build_db.R` and `app.R`.
+- **Dataset & database design** - the data dictionary and how the dataset maps to the SQLite tables and view.
+- **Wireframe sketch** - the low-fidelity layout sketch used for sign-off.
 
 ## Roadmap
 
@@ -116,7 +127,7 @@ explanations for each R file, and a dataset/database design document.
 - [x] Stage 3 - SQLite database creation (tables, view, index)
 - [x] Stage 4 - Shiny app skeleton (UI layout, DB connection, tabs)
 - [x] Stage 5 - SQL queries and all six visualizations
-- [ ] Stage 6 - Styling, polish, and documentation
+- [x] Stage 6 - Styling, polish, and documentation
 
 ## License
 
