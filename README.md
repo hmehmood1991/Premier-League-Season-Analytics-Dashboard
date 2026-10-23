@@ -59,15 +59,7 @@ per-team figures use parameterized queries (`WHERE team = ?`).
 ├── build_db.R            # builds epl.sqlite from the dataset
 ├── epl.sqlite            # SQLite database (generated; see Data below)
 ├── README.md
-├── .gitignore
-├── LICENSE
-└── docs/                 # written deliverables and screenshot
-    ├── 01_project_proposal.docx
-    ├── 02_code_explanation_build_db.docx
-    ├── 03_code_explanation_app.docx
-    ├── 04_dataset_and_database.docx
-    ├── 05_wireframe_sketch.png
-    └── screenshot.png
+└── .gitignore
 ```
 
 ## Getting started
@@ -110,24 +102,6 @@ The app uses two datasets: match results and shot-level data.
 
 The database contains two tables (`matches`, `shots`) and one view
 (`team_match`). See `docs/04_dataset_and_database.docx` for a full data dictionary.
-
-## Documentation
-
-The `docs/` folder contains the project write-ups:
-
-- **Project proposal** - the one-page proposal.
-- **Code explanations** - section-by-section walkthroughs of `build_db.R` and `app.R`.
-- **Dataset & database design** - the data dictionary and how the dataset maps to the SQLite tables and view.
-- **Wireframe sketch** - the low-fidelity layout sketch used for sign-off.
-
-## Roadmap
-
-- [x] Stage 1 - Project setup and scaffolding
-- [x] Stage 2 - Data layer (worldfootballR pipeline and sample-data generator)
-- [x] Stage 3 - SQLite database creation (tables, view, index)
-- [x] Stage 4 - Shiny app skeleton (UI layout, DB connection, tabs)
-- [x] Stage 5 - SQL queries and all six visualizations
-- [x] Stage 6 - Styling, polish, and documentation
 
 ## License
 
