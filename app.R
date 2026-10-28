@@ -29,6 +29,11 @@ max_mw <- dbGetQuery(con, "SELECT MAX(matchweek) m FROM team_match")$m
 # ---- palette + ggplot theme -------------------------------------------------
 pl_purple <- "#37003c"; pl_pink <- "#e90052"
 pl_blue   <- "#2b7bba"; pl_ink  <- "#1d1d1f"
+# Premier League finishing zones (used to colour the Title race bump chart)
+zone_cols <- c("Champion"    = "#37003c",   # 1st
+               "Top 4 (UCL)" = "#2b7bba",   # 2nd-4th, Champions League
+               "Relegation"  = "#e63946",   # bottom three
+               "Mid-table"   = "grey82")
 
 theme_pl <- function(base = 13) {
   theme_minimal(base_size = base) +
@@ -47,19 +52,23 @@ theme_pl <- function(base = 13) {
 CAP <- "Sample data for demonstration - pipeline: FBref / Understat via worldfootballR"
 
 # ---- SQL query helpers ------------------------------------------------------
+# The aggregate helpers take a matchweek window (w1, w2) and count only the
+# matches played inside it, so the table, xG chart, home/away chart and the
+# value boxes all respond to the sidebar slider.
 q_trajectory <- function() dbGetQuery(con, "
   SELECT team, matchweek,
          SUM(points) OVER (PARTITION BY team ORDER BY matchweek) AS cum_points
   FROM team_match")
 
-q_totals <- function() dbGetQuery(con, "
+q_totals <- function(w1 = 1, w2 = max_mw) dbGetQuery(con, "
   SELECT team,
          COUNT(*) P,
          SUM(points = 3) W, SUM(points = 1) D, SUM(points = 0) L,
          SUM(gf) GF, SUM(ga) GA, SUM(gf) - SUM(ga) GD,
          ROUND(SUM(xg), 1) xGF, SUM(points) Pts
-  FROM team_match GROUP BY team
-  ORDER BY Pts DESC, GD DESC, GF DESC")
+  FROM team_match WHERE matchweek BETWEEN ? AND ?
+  GROUP BY team
+  ORDER BY Pts DESC, GD DESC, GF DESC", params = list(w1, w2))
 
 q_form <- function(team) dbGetQuery(con, "
   SELECT matchweek,
@@ -67,24 +76,50 @@ q_form <- function(team) dbGetQuery(con, "
                            ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS form
   FROM team_match WHERE team = ? ORDER BY matchweek", params = list(team))
 
-q_homeaway <- function() dbGetQuery(con, "
+q_homeaway <- function(w1 = 1, w2 = max_mw) dbGetQuery(con, "
   SELECT team, venue, AVG(points) AS ppg
-  FROM team_match GROUP BY team, venue")
+  FROM team_match WHERE matchweek BETWEEN ? AND ?
+  GROUP BY team, venue", params = list(w1, w2))
 
 q_shots <- function(team) dbGetQuery(con, "
   SELECT x, y, xg, goal FROM shots WHERE team = ?", params = list(team))
 
-q_team_line <- function(team) dbGetQuery(con, "
+q_team_line <- function(team, w1 = 1, w2 = max_mw) dbGetQuery(con, "
   SELECT SUM(points) Pts, SUM(gf) GF, ROUND(SUM(xg),1) xGF,
          SUM(gf) - SUM(ga) GD
-  FROM team_match WHERE team = ?", params = list(team))
+  FROM team_match WHERE team = ? AND matchweek BETWEEN ? AND ?",
+  params = list(team, w1, w2))
 
-q_position <- function(team) { tot <- q_totals(); which(tot$team == team) }
+q_position <- function(team, w1 = 1, w2 = max_mw) {
+  tot <- q_totals(w1, w2); which(tot$team == team)
+}
+
+# League position after every matchweek, for the bump chart. A ROW_NUMBER()
+# ranking window function sits on top of cumulative points (goal difference and
+# goals for break ties), giving each team a unique 1-20 position every week.
+q_positions <- function() dbGetQuery(con, "
+  WITH cum AS (
+    SELECT team, matchweek,
+           SUM(points)  OVER (PARTITION BY team ORDER BY matchweek) AS cp,
+           SUM(gf - ga) OVER (PARTITION BY team ORDER BY matchweek) AS cgd,
+           SUM(gf)      OVER (PARTITION BY team ORDER BY matchweek) AS cgf
+    FROM team_match
+  )
+  SELECT matchweek, team,
+         ROW_NUMBER() OVER (PARTITION BY matchweek
+                            ORDER BY cp DESC, cgd DESC, cgf DESC) AS position
+  FROM cum")
 
 # ordinal suffix for league position
 sfx <- function(n) {
   if (n %% 100 %in% 11:13) "th" else
     switch(as.character(n %% 10), "1" = "st", "2" = "nd", "3" = "rd", "th")
+}
+
+# label for the selected matchweek window (used in subtitles)
+wk_lbl <- function(mw) {
+  if (mw[1] == 1 && mw[2] == max_mw) "full season"
+  else paste0("weeks ", mw[1], "-", mw[2])
 }
 
 # ---- vertical half-pitch for the shot map -----------------------------------
@@ -123,7 +158,8 @@ ui <- page_sidebar(
     checkboxInput("labels", "Show team labels", TRUE),
     hr(),
     helpText("Data is queried live from an SQLite database. The focus team is",
-             "highlighted where relevant.")
+             "highlighted where relevant, and the matchweek slider filters the",
+             "table, xG and home/away charts to the selected window.")
   ),
   layout_columns(
     fill = FALSE, col_widths = c(3, 3, 3, 3),
@@ -134,6 +170,20 @@ ui <- page_sidebar(
   ),
   navset_card_tab(
     nav_panel("League race",  plotOutput("p_traj",  height = 440)),
+    nav_panel("Title race",
+              tags$div(
+                class = "race-ctrl",
+                tags$style(HTML(
+                  ".race-ctrl{max-width:470px;position:relative;padding-left:42px;}
+                   .race-ctrl .form-group{margin-bottom:4px;}
+                   .race-ctrl .control-label{font-size:12px;margin-bottom:2px;}
+                   .race-ctrl .slider-animate-container{position:absolute;left:0;top:26px;margin:0;}
+                   .race-ctrl .slider-animate-button{font-size:20px;}")),
+                sliderInput("race_wk", "Play the season (week)",
+                            min = 1, max = max_mw, value = max_mw, step = 1, sep = "",
+                            width = "100%",
+                            animate = animationOptions(interval = 450, loop = FALSE))),
+              plotOutput("p_bump", height = 640)),
     nav_panel("xG analysis",  plotOutput("p_xg",    height = 440)),
     nav_panel("Team form",    plotOutput("p_form",  height = 440)),
     nav_panel("Home vs away", plotOutput("p_ha",    height = 520)),
@@ -147,35 +197,69 @@ ui <- page_sidebar(
 # =============================================================================
 server <- function(input, output, session) {
 
-  totals <- reactive(q_totals())
+  # League table for the selected matchweek window, shared by the boxes,
+  # the xG chart and the table.
+  totals <- reactive(q_totals(input$mw[1], input$mw[2]))
 
-  # ---- value boxes ----------------------------------------------------------
-  output$vb_pos  <- renderText({ p <- q_position(input$team); paste0(p, sfx(p)) })
-  output$vb_pts  <- renderText({ q_team_line(input$team)$Pts })
-  output$vb_gf   <- renderText({ q_team_line(input$team)$GF })
+  # ---- value boxes (also follow the matchweek window) -----------------------
+  output$vb_pos  <- renderText({
+    p <- q_position(input$team, input$mw[1], input$mw[2]); paste0(p, sfx(p))
+  })
+  output$vb_pts  <- renderText({ q_team_line(input$team, input$mw[1], input$mw[2])$Pts })
+  output$vb_gf   <- renderText({ q_team_line(input$team, input$mw[1], input$mw[2])$GF })
   output$vb_diff <- renderText({
-    d <- q_team_line(input$team); sprintf("%+.1f", d$GF - d$xGF)
+    d <- q_team_line(input$team, input$mw[1], input$mw[2]); sprintf("%+.1f", d$GF - d$xGF)
   })
 
   # ---- League race ----------------------------------------------------------
   output$p_traj <- renderPlot({
     d <- q_trajectory()
     d <- d[d$matchweek >= input$mw[1] & d$matchweek <= input$mw[2], ]
-    hi   <- d[d$team == input$team, ]
-    ends <- d[d$matchweek == max(d$matchweek), ]
-    top4 <- ends[order(-ends$cum_points), ][1:4, ]
+    hi <- d[d$team == input$team, ]
     ggplot(d, aes(matchweek, cum_points, group = team)) +
       geom_line(colour = "grey82", linewidth = 0.5) +
-      geom_line(data = hi, colour = pl_pink, linewidth = 1.5) +
-      geom_point(data = hi[nrow(hi), ], colour = pl_pink, size = 2.6) +
-      { if (input$labels) geom_text(data = top4,
-          aes(label = team), hjust = 0, nudge_x = 0.4, size = 3.4,
-          colour = "grey30", check_overlap = TRUE) } +
-      scale_x_continuous(expand = expansion(mult = c(0.01, 0.14))) +
+      geom_line(data = hi, colour = pl_pink, linewidth = 1.7) +
+      geom_point(data = hi[nrow(hi), ], colour = pl_pink, size = 2.8) +
+      scale_x_continuous(expand = expansion(mult = c(0.01, 0.04))) +
       labs(title = "The title & relegation race",
-           subtitle = paste0("Cumulative points across the season - highlighted: ",
-                             input$team),
+           subtitle = paste0("Cumulative points - the selected team (", input$team,
+                             ") is shown in colour"),
            x = "Matchweek", y = "Points", caption = CAP) +
+      theme_pl()
+  })
+
+  # ---- Title race: league position by matchweek (bump chart) ----------------
+  output$p_bump <- renderPlot({
+    d <- q_positions()
+    # Zones are fixed to the FINAL standings and reflect real Premier League
+    # outcomes. The play slider reveals the season up to the chosen week.
+    fin <- d[d$matchweek == max_mw, c("team", "position")]
+    names(fin)[2] <- "final_pos"
+    d <- merge(d, fin, by = "team")
+    releg <- max(d$final_pos) - 2              # bottom three positions
+    d$zone <- ifelse(d$final_pos == 1, "Champion",
+              ifelse(d$final_pos <= 4, "Top 4 (UCL)",
+              ifelse(d$final_pos >= releg, "Relegation", "Mid-table")))
+    vis  <- d[d$matchweek <= input$race_wk, ]
+    mid  <- vis[vis$zone == "Mid-table", ]
+    hl   <- vis[vis$zone != "Mid-table", ]
+    hl$zone <- factor(hl$zone, levels = c("Champion", "Top 4 (UCL)", "Relegation"))
+    ends <- hl[hl$matchweek == max(vis$matchweek), ]
+    ggplot(mapping = aes(matchweek, position, group = team)) +
+      geom_line(data = mid, colour = "grey82", linewidth = 0.6) +
+      geom_line(data = hl, aes(colour = zone), linewidth = 1.5) +
+      geom_point(data = ends, aes(colour = zone), size = 3) +
+      { if (input$labels) geom_text(data = ends, aes(label = team, colour = zone),
+          hjust = 0, nudge_x = 0.4, size = 3.3, fontface = "bold",
+          show.legend = FALSE, check_overlap = TRUE) } +
+      scale_colour_manual(values = zone_cols, name = NULL) +
+      scale_y_reverse(breaks = c(1, 4, 8, 12, 16, 20), expand = expansion(mult = 0.03)) +
+      scale_x_continuous(limits = c(1, max_mw + 5), breaks = c(1, 10, 20, 30, max_mw),
+                         expand = expansion(mult = c(0.01, 0.02))) +
+      labs(title = "Race for the title - league position by matchweek",
+           subtitle = paste0("Season up to week ", input$race_wk,
+                             " - champion, top 4 (UCL) and relegation zone highlighted"),
+           x = "Matchweek", y = "League position", caption = CAP) +
       theme_pl()
   })
 
@@ -195,7 +279,8 @@ server <- function(input, output, session) {
                            midpoint = 0, name = "Goals - xG") +
       coord_equal(xlim = lim, ylim = lim) +
       labs(title = "Finishing: goals vs expected goals",
-           subtitle = "Above the dashed line = scored more than expected",
+           subtitle = paste0("Above the dashed line = scored more than expected - ",
+                             wk_lbl(input$mw)),
            x = "Expected goals (xG)", y = "Goals scored", caption = CAP) +
       theme_pl()
     if (input$labels)
@@ -223,10 +308,15 @@ server <- function(input, output, session) {
 
   # ---- Home vs away (dumbbell) ---------------------------------------------
   output$p_ha <- renderPlot({
-    ha <- q_homeaway()
+    ha <- q_homeaway(input$mw[1], input$mw[2])
     home <- ha[ha$venue == "Home", c("team", "ppg")]; names(home)[2] <- "Home"
     away <- ha[ha$venue == "Away", c("team", "ppg")]; names(away)[2] <- "Away"
     wide <- merge(home, away, by = "team")
+    if (nrow(wide) == 0)
+      return(ggplot() +
+        annotate("text", x = 0, y = 0, size = 5, colour = "grey45",
+                 label = "Widen the matchweek range to compare home and away.") +
+        theme_void())
     wide <- wide[order(wide$Home + wide$Away), ]
     wide$team <- factor(wide$team, levels = wide$team)
     ggplot(wide) +
@@ -236,7 +326,8 @@ server <- function(input, output, session) {
       geom_point(aes(Home, team, colour = "Home"), size = 3.2) +
       scale_colour_manual(values = c(Home = pl_purple, Away = pl_pink), name = NULL) +
       labs(title = "Home comfort vs away resilience",
-           subtitle = "Points per game at home and away - each line is one team",
+           subtitle = paste0("Points per game at home and away - each line is one team - ",
+                             wk_lbl(input$mw)),
            x = "Points per game", y = NULL, caption = CAP) +
       theme_pl()
   })

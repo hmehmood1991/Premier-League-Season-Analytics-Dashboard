@@ -5,8 +5,6 @@ League data (2024/25). The data is stored in an SQLite database, and every
 visualization pulls its data through SQL queries, including window functions for
 the cumulative-points and rolling-form calculations.
 
-![Dashboard screenshot](docs/screenshot.png)
-
 ## Overview
 
 Raw football statistics usually sit in dense tables that are hard to read at a
@@ -19,10 +17,11 @@ presents them graphically.
 
 ## Features
 
-The dashboard has six tabbed views, driven by a team selector, a matchweek
+The dashboard has seven tabbed views, driven by a team selector, a matchweek
 range slider, and a label toggle:
 
 - **League race** - cumulative points across the season, with the selected team highlighted
+- **Title race** - an animated bump chart of every team's league position by matchweek; press Play to watch the season run once from week 1 to 38, with the final champion, the top four (Champions League places) and the relegation zone highlighted and everyone else in grey
 - **xG analysis** - goals scored vs expected goals, showing over- and under-performance
 - **Team form** - rolling 5-match average points per game
 - **Home vs away** - points-per-game split, shown as a dumbbell chart
@@ -32,16 +31,24 @@ range slider, and a label toggle:
 A row of value boxes shows live headline stats (position, points, goals,
 goals - xG) for the selected team.
 
+### How the controls affect each view
+
+- The **team selector** drives the three single-team views (League race highlight, Team form, Shot map) and the value boxes.
+- The **matchweek slider** zooms the League race and Team form charts and filters the aggregate views (Table, xG analysis, Home vs away) and the value boxes to only the matches played inside the selected window, so you can inspect any stretch of the season as its own mini-table.
+- The **Title race** tab has its own compact Play slider (with the play button to the left) that runs the season once from week 1 to 38 and then stops, independent of the sidebar.
+
 ## SQL-driven analysis
 
 Every figure is produced by a SQL query against the database rather than
-computed in memory, including two window functions:
+computed in memory, including three window functions:
 
 - **Cumulative points** use `SUM(points) OVER (PARTITION BY team ORDER BY matchweek)`.
 - **Rolling form** uses `AVG(points) OVER (ORDER BY matchweek ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)`.
+- **League position by matchweek** (the Title race bump chart) uses a `ROW_NUMBER()` ranking window function over a CTE of cumulative points, with goal difference and goals for as tie-breaks.
 
-The league table and home/away splits use `GROUP BY` aggregates, and all
-per-team figures use parameterized queries (`WHERE team = ?`).
+The league table and home/away splits use `GROUP BY` aggregates, the aggregate
+views filter to the selected window with `WHERE matchweek BETWEEN ? AND ?`, and
+all per-team figures use parameterized queries (`WHERE team = ?`).
 
 ## Tech stack
 
