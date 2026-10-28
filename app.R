@@ -44,7 +44,7 @@ theme_pl <- function(base = 13) {
       plot.margin     = margin(14, 18, 10, 12)
     )
 }
-CAP <- "Sample data for demonstration · pipeline: FBref / Understat via worldfootballR"
+CAP <- "Sample data for demonstration - pipeline: FBref / Understat via worldfootballR"
 
 # ---- SQL query helpers ------------------------------------------------------
 q_trajectory <- function() dbGetQuery(con, "
@@ -113,7 +113,7 @@ theme <- bs_theme(
 )
 
 ui <- page_sidebar(
-  title = "Premier League 2024/25 — Season Analytics",
+  title = "Premier League 2024/25 - Season Analytics",
   theme = theme,
   sidebar = sidebar(
     width = 260,
@@ -130,7 +130,7 @@ ui <- page_sidebar(
     value_box("League position", textOutput("vb_pos"),  theme = "purple"),
     value_box("Points",          textOutput("vb_pts"),  theme = "text-purple"),
     value_box("Goals",           textOutput("vb_gf"),   theme = "text-purple"),
-    value_box("Goals − xG", textOutput("vb_diff"), theme = "text-purple")
+    value_box("Goals - xG", textOutput("vb_diff"), theme = "text-purple")
   ),
   navset_card_tab(
     nav_panel("League race",  plotOutput("p_traj",  height = 440)),
@@ -173,7 +173,7 @@ server <- function(input, output, session) {
           colour = "grey30", check_overlap = TRUE) } +
       scale_x_continuous(expand = expansion(mult = c(0.01, 0.14))) +
       labs(title = "The title & relegation race",
-           subtitle = paste0("Cumulative points across the season · highlighted: ",
+           subtitle = paste0("Cumulative points across the season - highlighted: ",
                              input$team),
            x = "Matchweek", y = "Points", caption = CAP) +
       theme_pl()
@@ -192,7 +192,7 @@ server <- function(input, output, session) {
       geom_point(aes(fill = diff), shape = 21, colour = "white",
                  size = 4.4, stroke = 0.6) +
       scale_fill_gradient2(low = pl_blue, mid = "grey80", high = pl_pink,
-                           midpoint = 0, name = "Goals − xG") +
+                           midpoint = 0, name = "Goals - xG") +
       coord_equal(xlim = lim, ylim = lim) +
       labs(title = "Finishing: goals vs expected goals",
            subtitle = "Above the dashed line = scored more than expected",
@@ -215,7 +215,7 @@ server <- function(input, output, session) {
       geom_point(aes(colour = form), size = 2.6, na.rm = TRUE) +
       scale_colour_gradient(low = "grey70", high = pl_pink, guide = "none") +
       scale_y_continuous(limits = c(0, 3), breaks = 0:3) +
-      labs(title = paste("Form & momentum —", input$team),
+      labs(title = paste("Form & momentum -", input$team),
            subtitle = "Rolling 5-match average points per game (computed with a SQL window function)",
            x = "Matchweek", y = "Points per game", caption = CAP) +
       theme_pl()
@@ -236,7 +236,7 @@ server <- function(input, output, session) {
       geom_point(aes(Home, team, colour = "Home"), size = 3.2) +
       scale_colour_manual(values = c(Home = pl_purple, Away = pl_pink), name = NULL) +
       labs(title = "Home comfort vs away resilience",
-           subtitle = "Points per game at home and away · each line is one team",
+           subtitle = "Points per game at home and away - each line is one team",
            x = "Points per game", y = NULL, caption = CAP) +
       theme_pl()
   })
@@ -254,8 +254,8 @@ server <- function(input, output, session) {
       scale_size_continuous(range = c(1.4, 7), name = "xG") +
       scale_fill_manual(values = c(Goal = pl_pink, `No goal` = "grey55"), name = NULL) +
       coord_fixed(xlim = c(0, 80), ylim = c(60, 121)) +
-      labs(title = paste("Where the chances came from —", input$team),
-           subtitle = "Every shot, sized by xG · attacking towards the top",
+      labs(title = paste("Where the chances came from -", input$team),
+           subtitle = "Every shot, sized by xG - attacking towards the top",
            caption = CAP) +
       theme_pl() +
       theme(axis.text = element_blank(), axis.title = element_blank(),
